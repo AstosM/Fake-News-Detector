@@ -23,7 +23,7 @@ def stemming(content):
     return ' '.join(stemmed_content)
 
 # ------------------ Load Dataset & Train Model ------------------
-news_dataset =pd.read_csv("fake_or_real_news.csv.gz", compression="gzip")
+news_dataset = pd.read_csv("fake_or_real_news.csv.zip", compression="zip")
 news_dataset['label'] = news_dataset['label'].map({'FAKE': 1, 'REAL': 0})
 news_dataset['text'] = news_dataset['text'].astype(str).apply(stemming)
 
