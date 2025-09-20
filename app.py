@@ -1,11 +1,13 @@
 import streamlit as st
+import pandas as pd
 import re
 import nltk
-import joblib
-import pandas as pd
 from nltk.corpus import stopwords
 from nltk.stem.porter import PorterStemmer
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
 
 # Download stopwords
 nltk.download('stopwords')
@@ -21,19 +23,10 @@ def stemming_fast(text):
     stemmed_words = [porter_stemmer.stem(word) for word in text if word not in stop_words]
     return ' '.join(stemmed_words)
 
-# ------------------ Load Model & Vectorizer ------------------
-@st.cache_resource
-def load_model():
-    model = joblib.load("model.pkl")           # Pre-trained Logistic Regression
-    vectorizer = joblib.load("vectorizer.pkl") # Pre-fitted TF-IDF vectorizer
-    return model, vectorizer
-
-model, vectorizer = load_model()
-
 # ------------------ Streamlit UI ------------------
 st.set_page_config(page_title="Fake News Detection", page_icon="📰", layout="centered")
 
-# Add Custom Background with CSS
+# Add Custom Background
 page_bg = """
 <style>
 [data-testid="stAppViewContainer"] {
@@ -59,20 +52,54 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Sidebar Info
+# Sidebar
 st.sidebar.title("📊 App Info")
-st.sidebar.info("This app uses **Logistic Regression** with TF-IDF to classify news as Fake or Real.")
-st.sidebar.success("✅ Pre-trained model loaded instantly")
+st.sidebar.info("This app trains a Logistic Regression model on a CSV dataset and classifies news as Real or Fake.")
+st.sidebar.markdown("CSV must have columns: id, title, author, text, label (0=Real, 1=Fake)")
 
-# Input box for user
+# ------------------ Load CSV directly ------------------
+# 🔹 Replace this filename with the one you upload (must be in same folder as app.py)
+csv_file = "Fake news dataset.csv"
+
+news_dataset = pd.read_csv(csv_file)
+
+# Fill missing text and drop NaN labels
+news_dataset['text'] = news_dataset['text'].fillna('')
+news_dataset = news_dataset.dropna(subset=['label'])
+
+# Apply stemming
+news_dataset['text'] = news_dataset['text'].astype(str).apply(stemming_fast)
+
+# Prepare data
+X = news_dataset['text'].values
+Y = news_dataset['label'].values
+
+# TF-IDF
+vectorizer = TfidfVectorizer()
+X = vectorizer.fit_transform(X)
+
+# Split data
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, stratify=Y, random_state=2)
+
+# Train model
+model = LogisticRegression()
+model.fit(X_train, Y_train)
+
+# Evaluate
+train_acc = accuracy_score(Y_train, model.predict(X_train))
+test_acc = accuracy_score(Y_test, model.predict(X_test))
+
+st.sidebar.success(f"✅ Training Accuracy: {train_acc:.2f}")
+st.sidebar.success(f"✅ Test Accuracy: {test_acc:.2f}")
+
+# ------------------ Prediction ------------------
+st.markdown("## 🔍 Predict News Article")
 user_input = st.text_area("✍️ Enter News Text Here", height=200, placeholder="Paste the news article text...")
 
-# Predict button
-if st.button("🔍 Predict"):
+if st.button("Predict"):
     if user_input.strip() == "":
         st.warning("⚠️ Please enter some text!")
     else:
-        # Preprocess
         input_data = stemming_fast(user_input)
         vectorized_input = vectorizer.transform([input_data])
         prediction = model.predict(vectorized_input)
