@@ -115,7 +115,7 @@ if st.button("Predict"):
 st.markdown(
     """
     <hr>
-    <p style='text-align: center; color: grey;'>Made with ❤️ using Streamlit</p>
+    <p style='text-align: center; color: grey;'>Made with ❤️ using Streamlit by AstosM</p>
     """,
     unsafe_allow_html=True
 )
